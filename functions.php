@@ -1,286 +1,513 @@
 <?php
 /**
- * Prespa functions and definitions
+ * General API functions for scheduling actions
  *
- * @link https://developer.wordpress.org/themes/basics/theme-functions/
- *
- * @package Prespa
+ * @package ActionScheduler.
  */
 
-if ( ! defined( 'PRESPA_VERSION' ) ) {
-	define( 'PRESPA_VERSION', wp_get_theme()->get( 'Version' ) );
-}
+/**
+ * Enqueue an action to run one time, as soon as possible
+ *
+ * @param string $hook The hook to trigger.
+ * @param array  $args Arguments to pass when the hook triggers.
+ * @param string $group The group to assign this job to.
+ * @param bool   $unique Whether the action should be unique. It will not be scheduled if another pending or running action has the same hook and group parameters.
+ * @param int    $priority Lower values take precedence over higher values. Defaults to 10, with acceptable values falling in the range 0-255.
+ *
+ * @return int The action ID. Zero if there was an error scheduling the action.
+ */
+function as_enqueue_async_action( $hook, $args = array(), $group = '', $unique = false, $priority = 10 ) {
+	if ( ! ActionScheduler::is_initialized( __FUNCTION__ ) ) {
+		return 0;
+	}
 
-if ( ! function_exists( 'prespa_setup' ) ) :
 	/**
-	 * Sets up theme defaults and registers support for various WordPress features.
+	 * Provides an opportunity to short-circuit the default process for enqueuing async
+	 * actions.
 	 *
-	 * Note that this function is hooked into the after_setup_theme hook, which
-	 * runs before the init hook. The init hook is too late for some features, such
-	 * as indicating support for post thumbnails.
+	 * Returning a value other than null from the filter will short-circuit the normal
+	 * process. The expectation in such a scenario is that callbacks will return an integer
+	 * representing the enqueued action ID (enqueued using some alternative process) or else
+	 * zero.
+	 *
+	 * @param int|null $pre_option The value to return instead of the option value.
+	 * @param string   $hook       Action hook.
+	 * @param array    $args       Action arguments.
+	 * @param string   $group      Action group.
+	 * @param int      $priority   Action priority.
+	 * @param bool     $unique     Unique action.
 	 */
-	function prespa_setup() {
-		/*
-		 * Make theme available for translation.
-		 * Translations can be filed in the /languages/ directory.
-		 */
-		load_theme_textdomain( 'prespa', get_template_directory() . '/languages' );
-
-		// Add default posts and comments RSS feed links to head.
-		add_theme_support( 'automatic-feed-links' );
-
-		/*
-		 * Let WordPress manage the document title.
-		 * By adding theme support, we declare that this theme does not use a
-		 * hard-coded <title> tag in the document head, and expect WordPress to
-		 * provide it for us.
-		 */
-		add_theme_support( 'title-tag' );
-		add_theme_support( 'custom-header' );
-		/*
-		 * Enable support for Post Thumbnails on posts and pages.
-		 *
-		 * @link https://developer.wordpress.org/themes/functionality/featured-images-post-thumbnails/
-		 */
-		add_theme_support( 'post-thumbnails' );
-		add_theme_support( 'responsive-embeds' );
-
-		// This theme uses wp_nav_menu() in two locations based on theme customizer options.
-
-		register_nav_menus(
-			array(
-				'menu-1' => esc_html__( 'Primary', 'prespa' ),
-				'menu-2' => esc_html__( 'Top', 'prespa' ),
-			)
-		);
-
-		/*
-		 * Switch default core markup for search form, comment form, and comments
-		 * to output valid HTML5.
-		 */
-		add_theme_support(
-			'html5',
-			array(
-				'search-form',
-				'comment-form',
-				'comment-list',
-				'gallery',
-				'caption',
-				'style',
-				'script',
-			)
-		);
-
-		// Add theme support for selective refresh for widgets.
-		add_theme_support( 'customize-selective-refresh-widgets' );
-
-		/**
-		 * Add support for core custom logo.
-		 *
-		 * @link https://codex.wordpress.org/Theme_Logo
-		 */
-		add_theme_support(
-			'custom-logo',
-			array(
-				'height'      => 250,
-				'width'       => 250,
-				'flex-width'  => true,
-				'flex-height' => true,
-			)
-		);
-
-		/**
-		 * Add support for page excerpts.
-		 *
-		 * @link https://developer.wordpress.org/reference/functions/add_post_type_support/
-		 */
-		add_post_type_support( 'page', 'excerpt' );
-
-		// Set default values for the upload media box
-		update_option( 'image_default_align', 'center' );
-		update_option( 'image_default_size', 'large' );
-
-		/**
-		 * Add support for editor styles.
-		 * 
-		 * @since 1.7.3
-		 */
-		add_theme_support( 'editor-styles' );
-
+	$pre = apply_filters( 'pre_as_enqueue_async_action', null, $hook, $args, $group, $priority, $unique );
+	if ( null !== $pre ) {
+		return is_int( $pre ) ? $pre : 0;
 	}
-endif;
-add_action( 'after_setup_theme', 'prespa_setup' );
+
+	return ActionScheduler::factory()->create(
+		array(
+			'type'      => 'async',
+			'hook'      => $hook,
+			'arguments' => $args,
+			'group'     => $group,
+			'unique'    => $unique,
+			'priority'  => $priority,
+		)
+	);
+}
 
 /**
- * Register widget area
+ * Schedule an action to run one time
  *
- * @link https://developer.wordpress.org/themes/functionality/sidebars/#registering-a-sidebar
+ * @param int    $timestamp When the job will run.
+ * @param string $hook The hook to trigger.
+ * @param array  $args Arguments to pass when the hook triggers.
+ * @param string $group The group to assign this job to.
+ * @param bool   $unique Whether the action should be unique. It will not be scheduled if another pending or running action has the same hook and group parameters.
+ * @param int    $priority Lower values take precedence over higher values. Defaults to 10, with acceptable values falling in the range 0-255.
+ *
+ * @return int The action ID. Zero if there was an error scheduling the action.
  */
-function prespa_widgets_init() {
-	register_sidebar(
-		array(
-			'name'          => esc_html__( 'Sidebar', 'prespa' ),
-			'id'            => 'sidebar-1',
-			'description'   => esc_html__( 'Widgets in this area will be displayed in the first column in the footer.', 'prespa' ),
-			'before_widget' => '<section id="%1$s">',
-			'after_widget'  => '</section>',
-			'before_title'  => '<h3 class="heading">',
-			'after_title'   => '</h3>',
-		)
-	);
-	register_sidebar(
-		array(
-			'name'          => esc_html__( 'Footer 1', 'prespa' ),
-			'id'            => 'sidebar-2',
-			'description'   => esc_html__( 'Widgets in this area will be displayed in the second column in the footer.', 'prespa' ),
-			'before_widget' => '<section id="%1$s">',
-			'after_widget'  => '</section>',
-			'before_title'  => '<h3 class="heading">',
-			'after_title'   => '</h3>',
-		)
-	);
-	register_sidebar(
-		array(
-			'name'          => esc_html__( 'Footer 2', 'prespa' ),
-			'id'            => 'sidebar-3',
-			'description'   => esc_html__( 'Widgets in this area will be displayed in the third column in the footer.', 'prespa' ),
-			'before_widget' => '<section id="%1$s">',
-			'after_widget'  => '</section>',
-			'before_title'  => '<h3 class="heading">',
-			'after_title'   => '</h3>',
-		)
-	);
-	register_sidebar(
-		array(
-			'name'          => esc_html__( 'Footer 3', 'prespa' ),
-			'id'            => 'sidebar-4',
-			'description'   => esc_html__( 'Widgets in this area will be displayed in the fourth column in the footer.', 'prespa' ),
-			'before_widget' => '<section id="%1$s">',
-			'after_widget'  => '</section>',
-			'before_title'  => '<h3 class="heading">',
-			'after_title'   => '</h3>',
-		)
-	);
-	register_sidebar(
-		array(
-			'name'          => esc_html__( 'Footer 4', 'prespa' ),
-			'id'            => 'sidebar-5',
-			'description'   => esc_html__( 'Widgets in this area will be displayed in the fourth column in the footer.', 'prespa' ),
-			'before_widget' => '<section id="%1$s">',
-			'after_widget'  => '</section>',
-			'before_title'  => '<h3 class="heading">',
-			'after_title'   => '</h3>',
-		)
-	);
-}
-
-add_action( 'widgets_init', 'prespa_widgets_init' );
-
-/**
- * Enqueue scripts and styles.
- */
-function prespa_scripts() {
-	$script_asset = require get_template_directory() . '/build/js/app.asset.php';
-	wp_enqueue_style( 'prespa-style', get_template_directory_uri() . '/build/css/main.css', array(), filemtime( get_template_directory() . '/build/css/main.css' ) );
-	wp_style_add_data( 'prespa-style', 'rtl', 'replace' );
-
-	wp_enqueue_script( 'prespa-script', get_template_directory_uri() . '/build/js/app.js', $script_asset['dependencies'], $script_asset['version'], true );
-
-	if ( is_singular() && comments_open() && get_option( 'thread_comments' ) ) {
-		wp_enqueue_script( 'comment-reply' );
+function as_schedule_single_action( $timestamp, $hook, $args = array(), $group = '', $unique = false, $priority = 10 ) {
+	if ( ! ActionScheduler::is_initialized( __FUNCTION__ ) ) {
+		return 0;
 	}
 
-	$js_customizer_options = array(
-		'ajax_url'           => esc_url( admin_url( 'admin-ajax.php' ) ),
-		'fixed_header'       => prespa_is_fixed_header(),
-		'sticky_header'      => prespa_is_sticky_header(),
-		'column'             => esc_html( get_theme_mod( 'post_archives_columns', '1' ) ),
-		'has_masonry_layout' => esc_html( get_theme_mod( 'post_archives_display', 'grid' ) !== 'grid' ),
+	/**
+	 * Provides an opportunity to short-circuit the default process for enqueuing single
+	 * actions.
+	 *
+	 * Returning a value other than null from the filter will short-circuit the normal
+	 * process. The expectation in such a scenario is that callbacks will return an integer
+	 * representing the scheduled action ID (scheduled using some alternative process) or else
+	 * zero.
+	 *
+	 * @param int|null $pre_option The value to return instead of the option value.
+	 * @param int      $timestamp  When the action will run.
+	 * @param string   $hook       Action hook.
+	 * @param array    $args       Action arguments.
+	 * @param string   $group      Action group.
+	 * @param int      $priorities Action priority.
+	 * @param bool     $unique     Unique action.
+	 */
+	$pre = apply_filters( 'pre_as_schedule_single_action', null, $timestamp, $hook, $args, $group, $priority, $unique );
+	if ( null !== $pre ) {
+		return is_int( $pre ) ? $pre : 0;
+	}
+
+	return ActionScheduler::factory()->create(
+		array(
+			'type'      => 'single',
+			'hook'      => $hook,
+			'arguments' => $args,
+			'when'      => $timestamp,
+			'group'     => $group,
+			'unique'    => $unique,
+			'priority'  => $priority,
+		)
 	);
-	// theme options
-	wp_localize_script( 'prespa-script', 'prespa_customizer_object', $js_customizer_options );
 }
-add_action( 'wp_enqueue_scripts', 'prespa_scripts' );
 
-// Add scripts and styles for backend
-function prespa_scripts_admin( $hook ) {
-	// Styles
-	wp_enqueue_style(
-		'prespa-style-admin',
-		get_template_directory_uri() . '/admin/css/admin.css',
-		'',
-		filemtime( get_template_directory() . '/admin/css/admin.css' ),
-		'all'
+/**
+ * Schedule a recurring action
+ *
+ * @param int    $timestamp When the first instance of the job will run.
+ * @param int    $interval_in_seconds How long to wait between runs.
+ * @param string $hook The hook to trigger.
+ * @param array  $args Arguments to pass when the hook triggers.
+ * @param string $group The group to assign this job to.
+ * @param bool   $unique Whether the action should be unique. It will not be scheduled if another pending or running action has the same hook and group parameters.
+ * @param int    $priority Lower values take precedence over higher values. Defaults to 10, with acceptable values falling in the range 0-255.
+ *
+ * @return int The action ID. Zero if there was an error scheduling the action.
+ */
+function as_schedule_recurring_action( $timestamp, $interval_in_seconds, $hook, $args = array(), $group = '', $unique = false, $priority = 10 ) {
+	if ( ! ActionScheduler::is_initialized( __FUNCTION__ ) ) {
+		return 0;
+	}
+
+	$interval = (int) $interval_in_seconds;
+
+	// We expect an integer and allow it to be passed using float and string types, but otherwise
+	// should reject unexpected values.
+	// phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison
+	if ( ! is_numeric( $interval_in_seconds ) || $interval_in_seconds != $interval ) {
+		_doing_it_wrong(
+			__METHOD__,
+			sprintf(
+				/* translators: 1: provided value 2: provided type. */
+				esc_html__( 'An integer was expected but "%1$s" (%2$s) was received.', 'action-scheduler' ),
+				esc_html( $interval_in_seconds ),
+				esc_html( gettype( $interval_in_seconds ) )
+			),
+			'3.6.0'
+		);
+
+		return 0;
+	}
+
+	/**
+	 * Provides an opportunity to short-circuit the default process for enqueuing recurring
+	 * actions.
+	 *
+	 * Returning a value other than null from the filter will short-circuit the normal
+	 * process. The expectation in such a scenario is that callbacks will return an integer
+	 * representing the scheduled action ID (scheduled using some alternative process) or else
+	 * zero.
+	 *
+	 * @param int|null $pre_option          The value to return instead of the option value.
+	 * @param int      $timestamp           When the action will run.
+	 * @param int      $interval_in_seconds How long to wait between runs.
+	 * @param string   $hook                Action hook.
+	 * @param array    $args                Action arguments.
+	 * @param string   $group               Action group.
+	 * @param int      $priority            Action priority.
+	 * @param bool     $unique              Unique action.
+	 */
+	$pre = apply_filters( 'pre_as_schedule_recurring_action', null, $timestamp, $interval_in_seconds, $hook, $args, $group, $priority, $unique );
+	if ( null !== $pre ) {
+		return is_int( $pre ) ? $pre : 0;
+	}
+
+	return ActionScheduler::factory()->create(
+		array(
+			'type'      => 'recurring',
+			'hook'      => $hook,
+			'arguments' => $args,
+			'when'      => $timestamp,
+			'pattern'   => $interval_in_seconds,
+			'group'     => $group,
+			'unique'    => $unique,
+			'priority'  => $priority,
+		)
 	);
 }
-add_action( 'admin_enqueue_scripts', 'prespa_scripts_admin' );
 
-// Add scripts and styles to the frontend and to the block editor at the same time
-function prespa_block_scripts() {
-	wp_enqueue_style( 'prespa-block-styles', get_template_directory_uri() . '/assets/css/core-add.css', '', filemtime( get_template_directory() . '/assets/css/core-add.css' ), 'all' );
-	wp_enqueue_script( 'prespa-block-scripts', get_template_directory_uri() . '/assets/js/core-add.js', '', filemtime( get_template_directory() . '/assets/css/core-add.css' ), true );
+/**
+ * Schedule an action that recurs on a cron-like schedule.
+ *
+ * @param int    $timestamp The first instance of the action will be scheduled
+ *           to run at a time calculated after this timestamp matching the cron
+ *           expression. This can be used to delay the first instance of the action.
+ * @param string $schedule A cron-link schedule string.
+ * @see http://en.wikipedia.org/wiki/Cron
+ *   *    *    *    *    *    *
+ *   ┬    ┬    ┬    ┬    ┬    ┬
+ *   |    |    |    |    |    |
+ *   |    |    |    |    |    + year [optional]
+ *   |    |    |    |    +----- day of week (0 - 7) (Sunday=0 or 7)
+ *   |    |    |    +---------- month (1 - 12)
+ *   |    |    +--------------- day of month (1 - 31)
+ *   |    +-------------------- hour (0 - 23)
+ *   +------------------------- min (0 - 59)
+ * @param string $hook The hook to trigger.
+ * @param array  $args Arguments to pass when the hook triggers.
+ * @param string $group The group to assign this job to.
+ * @param bool   $unique Whether the action should be unique. It will not be scheduled if another pending or running action has the same hook and group parameters.
+ * @param int    $priority Lower values take precedence over higher values. Defaults to 10, with acceptable values falling in the range 0-255.
+ *
+ * @return int The action ID. Zero if there was an error scheduling the action.
+ */
+function as_schedule_cron_action( $timestamp, $schedule, $hook, $args = array(), $group = '', $unique = false, $priority = 10 ) {
+	if ( ! ActionScheduler::is_initialized( __FUNCTION__ ) ) {
+		return 0;
+	}
+
+	/**
+	 * Provides an opportunity to short-circuit the default process for enqueuing cron
+	 * actions.
+	 *
+	 * Returning a value other than null from the filter will short-circuit the normal
+	 * process. The expectation in such a scenario is that callbacks will return an integer
+	 * representing the scheduled action ID (scheduled using some alternative process) or else
+	 * zero.
+	 *
+	 * @param int|null $pre_option The value to return instead of the option value.
+	 * @param int      $timestamp  When the action will run.
+	 * @param string   $schedule   Cron-like schedule string.
+	 * @param string   $hook       Action hook.
+	 * @param array    $args       Action arguments.
+	 * @param string   $group      Action group.
+	 * @param int      $priority   Action priority.
+	 * @param bool     $unique     Unique action.
+	 */
+	$pre = apply_filters( 'pre_as_schedule_cron_action', null, $timestamp, $schedule, $hook, $args, $group, $priority, $unique );
+	if ( null !== $pre ) {
+		return is_int( $pre ) ? $pre : 0;
+	}
+
+	return ActionScheduler::factory()->create(
+		array(
+			'type'      => 'cron',
+			'hook'      => $hook,
+			'arguments' => $args,
+			'when'      => $timestamp,
+			'pattern'   => $schedule,
+			'group'     => $group,
+			'unique'    => $unique,
+			'priority'  => $priority,
+		)
+	);
 }
-add_action( 'enqueue_block_assets', 'prespa_block_scripts' );
 
 /**
- * Implement the Custom Header feature.
+ * Cancel the next occurrence of a scheduled action.
+ *
+ * While only the next instance of a recurring or cron action is unscheduled by this method, that will also prevent
+ * all future instances of that recurring or cron action from being run. Recurring and cron actions are scheduled in
+ * a sequence instead of all being scheduled at once. Each successive occurrence of a recurring action is scheduled
+ * only after the former action is run. If the next instance is never run, because it's unscheduled by this function,
+ * then the following instance will never be scheduled (or exist), which is effectively the same as being unscheduled
+ * by this method also.
+ *
+ * @param string $hook The hook that the job will trigger.
+ * @param array  $args Args that would have been passed to the job.
+ * @param string $group The group the job is assigned to.
+ *
+ * @return int|null The scheduled action ID if a scheduled action was found, or null if no matching action found.
  */
-require get_template_directory() . '/inc/custom-header.php';
+function as_unschedule_action( $hook, $args = array(), $group = '' ) {
+	if ( ! ActionScheduler::is_initialized( __FUNCTION__ ) ) {
+		return 0;
+	}
+	$params = array(
+		'hook'    => $hook,
+		'status'  => ActionScheduler_Store::STATUS_PENDING,
+		'orderby' => 'date',
+		'order'   => 'ASC',
+		'group'   => $group,
+	);
+	if ( is_array( $args ) ) {
+		$params['args'] = $args;
+	}
 
-/**
- * Custom template tags for this theme.
- */
-require get_template_directory() . '/inc/template-tags.php';
+	$action_id = ActionScheduler::store()->query_action( $params );
 
-/**
- * Functions which enhance the theme by hooking into WordPress.
- */
-require get_template_directory() . '/inc/template-functions.php';
+	if ( $action_id ) {
+		try {
+			ActionScheduler::store()->cancel_action( $action_id );
+		} catch ( Exception $exception ) {
+			ActionScheduler::logger()->log(
+				$action_id,
+				sprintf(
+					/* translators: %1$s is the name of the hook to be cancelled, %2$s is the exception message. */
+					__( 'Caught exception while cancelling action "%1$s": %2$s', 'action-scheduler' ),
+					$hook,
+					$exception->getMessage()
+				)
+			);
 
-/**
- * Theme hooks
- */
-require get_template_directory() . '/inc/template-hooks.php';
+			$action_id = null;
+		}
+	}
 
-/**
- * Block Patterns
- */
-
- require get_template_directory() . '/inc/blocks/block-patterns.php';
-
-/**
- * Customizer additions.
- */
-require get_template_directory() . '/inc/customizer.php';
-
-/**
- * Custom svg icons
- */
-require get_template_directory() . '/assets/svg/svg-icons.php';
-
-/**
- * Load Jetpack compatibility file.
- */
-if ( defined( 'JETPACK__VERSION' ) ) {
-	require get_template_directory() . '/inc/jetpack.php';
+	return $action_id;
 }
 
 /**
- * Load WooCommerce compatibility file.
+ * Cancel all occurrences of a scheduled action.
+ *
+ * @param string $hook The hook that the job will trigger.
+ * @param array  $args Args that would have been passed to the job.
+ * @param string $group The group the job is assigned to.
  */
-if ( class_exists( 'WooCommerce' ) ) {
-	require get_template_directory() . '/inc/woocommerce.php';
-}
-
-
-/* Include Theme Options Page for Admin */
-if ( current_user_can( 'manage_options' ) ) {
-	require_once 'admin/theme-intro.php';
-	require_once get_template_directory() . '/admin/notices.php';
-	require_once get_template_directory() . '/admin/welcome-notice.php';
+function as_unschedule_all_actions( $hook, $args = array(), $group = '' ) {
+	if ( ! ActionScheduler::is_initialized( __FUNCTION__ ) ) {
+		return;
+	}
+	if ( empty( $args ) ) {
+		if ( ! empty( $hook ) && empty( $group ) ) {
+			ActionScheduler_Store::instance()->cancel_actions_by_hook( $hook );
+			return;
+		}
+		if ( ! empty( $group ) && empty( $hook ) ) {
+			ActionScheduler_Store::instance()->cancel_actions_by_group( $group );
+			return;
+		}
+	}
+	do {
+		$unscheduled_action = as_unschedule_action( $hook, $args, $group );
+	} while ( ! empty( $unscheduled_action ) );
 }
 
 /**
- * starter content
+ * Check if there is an existing action in the queue with a given hook, args and group combination.
+ *
+ * An action in the queue could be pending, in-progress or async. If the is pending for a time in
+ * future, its scheduled date will be returned as a timestamp. If it is currently being run, or an
+ * async action sitting in the queue waiting to be processed, in which case boolean true will be
+ * returned. Or there may be no async, in-progress or pending action for this hook, in which case,
+ * boolean false will be the return value.
+ *
+ * @param string $hook Name of the hook to search for.
+ * @param array  $args Arguments of the action to be searched.
+ * @param string $group Group of the action to be searched.
+ *
+ * @return int|bool The timestamp for the next occurrence of a pending scheduled action, true for an async or in-progress action or false if there is no matching action.
  */
-require get_template_directory() . '/starter-content/init.php';
+function as_next_scheduled_action( $hook, $args = null, $group = '' ) {
+	if ( ! ActionScheduler::is_initialized( __FUNCTION__ ) ) {
+		return false;
+	}
+
+	$params = array(
+		'hook'    => $hook,
+		'orderby' => 'date',
+		'order'   => 'ASC',
+		'group'   => $group,
+	);
+
+	if ( is_array( $args ) ) {
+		$params['args'] = $args;
+	}
+
+	$params['status'] = ActionScheduler_Store::STATUS_RUNNING;
+	$action_id        = ActionScheduler::store()->query_action( $params );
+	if ( $action_id ) {
+		return true;
+	}
+
+	$params['status'] = ActionScheduler_Store::STATUS_PENDING;
+	$action_id        = ActionScheduler::store()->query_action( $params );
+	if ( null === $action_id ) {
+		return false;
+	}
+
+	$action         = ActionScheduler::store()->fetch_action( $action_id );
+	$scheduled_date = $action->get_schedule()->get_date();
+	if ( $scheduled_date ) {
+		return (int) $scheduled_date->format( 'U' );
+	} elseif ( null === $scheduled_date ) { // pending async action with NullSchedule.
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Check if there is a scheduled action in the queue but more efficiently than as_next_scheduled_action().
+ *
+ * It's recommended to use this function when you need to know whether a specific action is currently scheduled
+ * (pending or in-progress).
+ *
+ * @since 3.3.0
+ *
+ * @param string $hook  The hook of the action.
+ * @param array  $args  Args that have been passed to the action. Null will matches any args.
+ * @param string $group The group the job is assigned to.
+ *
+ * @return bool True if a matching action is pending or in-progress, false otherwise.
+ */
+function as_has_scheduled_action( $hook, $args = null, $group = '' ) {
+	if ( ! ActionScheduler::is_initialized( __FUNCTION__ ) ) {
+		return false;
+	}
+
+	$query_args = array(
+		'hook'    => $hook,
+		'status'  => array( ActionScheduler_Store::STATUS_RUNNING, ActionScheduler_Store::STATUS_PENDING ),
+		'group'   => $group,
+		'orderby' => 'none',
+	);
+
+	if ( null !== $args ) {
+		$query_args['args'] = $args;
+	}
+
+	$action_id = ActionScheduler::store()->query_action( $query_args );
+
+	return null !== $action_id;
+}
+
+/**
+ * Find scheduled actions
+ *
+ * @param array  $args Possible arguments, with their default values.
+ *         'hook' => '' - the name of the action that will be triggered.
+ *         'args' => NULL - the args array that will be passed with the action.
+ *         'date' => NULL - the scheduled date of the action. Expects a DateTime object, a unix timestamp, or a string that can parsed with strtotime(). Used in UTC timezone.
+ *         'date_compare' => '<=' - operator for testing "date". accepted values are '!=', '>', '>=', '<', '<=', '='.
+ *         'modified' => NULL - the date the action was last updated. Expects a DateTime object, a unix timestamp, or a string that can parsed with strtotime(). Used in UTC timezone.
+ *         'modified_compare' => '<=' - operator for testing "modified". accepted values are '!=', '>', '>=', '<', '<=', '='.
+ *         'group' => '' - the group the action belongs to.
+ *         'status' => '' - ActionScheduler_Store::STATUS_COMPLETE or ActionScheduler_Store::STATUS_PENDING.
+ *         'claimed' => NULL - TRUE to find claimed actions, FALSE to find unclaimed actions, a string to find a specific claim ID.
+ *         'per_page' => 5 - Number of results to return.
+ *         'offset' => 0.
+ *         'orderby' => 'date' - accepted values are 'hook', 'group', 'modified', 'date' or 'none'.
+ *         'order' => 'ASC'.
+ *
+ * @param string $return_format OBJECT, ARRAY_A, or ids.
+ *
+ * @return array
+ */
+function as_get_scheduled_actions( $args = array(), $return_format = OBJECT ) {
+	if ( ! ActionScheduler::is_initialized( __FUNCTION__ ) ) {
+		return array();
+	}
+	$store = ActionScheduler::store();
+	foreach ( array( 'date', 'modified' ) as $key ) {
+		if ( isset( $args[ $key ] ) ) {
+			$args[ $key ] = as_get_datetime_object( $args[ $key ] );
+		}
+	}
+	$ids = $store->query_actions( $args );
+
+	if ( 'ids' === $return_format || 'int' === $return_format ) {
+		return $ids;
+	}
+
+	$actions = array();
+	foreach ( $ids as $action_id ) {
+		$actions[ $action_id ] = $store->fetch_action( $action_id );
+	}
+
+	if ( ARRAY_A === $return_format ) {
+		foreach ( $actions as $action_id => $action_object ) {
+			$actions[ $action_id ] = get_object_vars( $action_object );
+		}
+	}
+
+	return $actions;
+}
+
+/**
+ * Helper function to create an instance of DateTime based on a given
+ * string and timezone. By default, will return the current date/time
+ * in the UTC timezone.
+ *
+ * Needed because new DateTime() called without an explicit timezone
+ * will create a date/time in PHP's timezone, but we need to have
+ * assurance that a date/time uses the right timezone (which we almost
+ * always want to be UTC), which means we need to always include the
+ * timezone when instantiating datetimes rather than leaving it up to
+ * the PHP default.
+ *
+ * @param mixed  $date_string A date/time string. Valid formats are explained in http://php.net/manual/en/datetime.formats.php.
+ * @param string $timezone A timezone identifier, like UTC or Europe/Lisbon. The list of valid identifiers is available http://php.net/manual/en/timezones.php.
+ *
+ * @return ActionScheduler_DateTime
+ */
+function as_get_datetime_object( $date_string = null, $timezone = 'UTC' ) {
+	if ( is_object( $date_string ) && $date_string instanceof DateTime ) {
+		$date = new ActionScheduler_DateTime( $date_string->format( 'Y-m-d H:i:s' ), new DateTimeZone( $timezone ) );
+	} elseif ( is_numeric( $date_string ) ) {
+		$date = new ActionScheduler_DateTime( '@' . $date_string, new DateTimeZone( $timezone ) );
+	} else {
+		$date = new ActionScheduler_DateTime( null === $date_string ? 'now' : $date_string, new DateTimeZone( $timezone ) );
+	}
+	return $date;
+}
+
+/**
+ * Check if a specific feature is supported by the current version of Action Scheduler.
+ *
+ * @since 3.9.3
+ *
+ * @param string $feature The feature to check support for.
+ *
+ * @return bool True if the feature is supported, false otherwise.
+ */
+function as_supports( string $feature ): bool {
+	$supported_features = array( 'ensure_recurring_actions_hook' );
+
+	return in_array( $feature, $supported_features, true );
+}
