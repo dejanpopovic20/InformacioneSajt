@@ -1,12 +1,12 @@
-=== Visualizer: Tables and Charts Manager for WordPress ===
-Contributors: codeinwp,themeisle,marius2012,marius_codeinwp,hardeepasrani,rozroz,Madalin_ThemeIsle
-Tags: tables, charts, pie, visualization, graphs
-Requires at least: 5.2
-Tested up to: 7.0
-Requires PHP: 7.4
-Stable tag: trunk
-License: GPL v2.0 or later
-License URI: http://www.opensource.org/licenses/gpl-license.php
+# Visualizer: Tables and Charts Manager for WordPress #
+**Contributors:** [codeinwp](https://profiles.wordpress.org/codeinwp), [themeisle](https://profiles.wordpress.org/themeisle), [marius2012](https://profiles.wordpress.org/marius2012), [marius_codeinwp](https://profiles.wordpress.org/marius_codeinwp), [hardeepasrani](https://profiles.wordpress.org/hardeepasrani), [rozroz](https://profiles.wordpress.org/rozroz), [Madalin_ThemeIsle](https://profiles.wordpress.org/Madalin_ThemeIsle)  
+**Tags:** tables, charts, pie, visualization, graphs  
+**Requires at least:** 5.2  
+**Tested up to:** 7.0  
+**Requires PHP:** 7.4  
+**Stable tag:** trunk  
+**License:** GPL v2.0 or later  
+**License URI:** http://www.opensource.org/licenses/gpl-license.php  
 
 Create responsive charts and tables manually or let the built-in AI build them from a simple text prompt. Supports multiple chart types and flexible data sources.
 
@@ -243,7 +243,7 @@ Please follow the reporting protocols outlined on our [Security Page](https://th
 7. Line Chart Settings
 8. Block editor - Chart Library
 
-== Changelog ==
+## Changelog ##
 
 ##### [Version 4.0.2](https://github.com/Codeinwp/visualizer/compare/v4.0.1...v4.0.2) (2026-05-19)
 
@@ -839,36 +839,36 @@ Please follow the reporting protocols outlined on our [Security Page](https://th
 
 
 
-= 3.4.11 - 2021-02-16  =
+### 3.4.11 - 2021-02-16  ###
 
 [Feat] Tested up to WP 5.6
 
 
-= 3.4.10 - 2020-12-09  =
+### 3.4.10 - 2020-12-09  ###
 
 * [Fix] Compatibility with Composer 2.0
 
 
-= 3.4.9 - 2020-11-26  =
+### 3.4.9 - 2020-11-26  ###
 
 * [Fix] Pie chart slices offset problem in the Gutenberg editor
 * [Fix] Warning is thrown when remote file is used as source
 * [Fix] Bubble chart legend position not working in the Gutenberg editor
 
 
-= 3.4.8 - 2020-09-29  =
+### 3.4.8 - 2020-09-29  ###
 
 * [Fix] Option to edit charts imported from JSON
 
 
-= 3.4.7 - 2020-09-21  =
+### 3.4.7 - 2020-09-21  ###
 
 * - [Fix] Import from JSON: Reordering columns only reorders the label, not the associated data
 * - [Fix] numberFormat option doesn't apply in Bar charts when using annotations
 * - [Fix] Google GEO chart is not rendering if 3rd data column is added
 
 
-= 3.4.6 - 2020-08-11  =
+### 3.4.6 - 2020-08-11  ###
 
 * - [Feat] Show chart ID in the chart library
 * - [Fix] Compatibility with WP 5.5
@@ -877,7 +877,7 @@ Please follow the reporting protocols outlined on our [Security Page](https://th
 * - [Fix] Duplicated enque for jsapi loader
 
 
-= 3.4.5 - 2020-07-08  =
+### 3.4.5 - 2020-07-08  ###
 
 * [Feat] New Google Table Charts
 * [Feat] Option for lazy loading Google Charts
@@ -885,7 +885,7 @@ Please follow the reporting protocols outlined on our [Security Page](https://th
 * [Fix] Remove Inside the Chart option for the legend position for Google Pie charts
 
 
-= 3.4.4 - 2020-06-16  =
+### 3.4.4 - 2020-06-16  ###
 
 * [Feat] Option to download charts as .png images
 * [Fix] Make UI more intuitive when a chart is missing in the editor
@@ -898,7 +898,7 @@ Please follow the reporting protocols outlined on our [Security Page](https://th
 * [Fix] Missing posts revisions on chart update
 
 
-= 3.4.3 - 2020-05-04  =
+### 3.4.3 - 2020-05-04  ###
 
 * [Feat] Improved chart creation UX
 * [Feat] New option to control the number of charts per page in the Charts Library
@@ -909,18 +909,18 @@ Please follow the reporting protocols outlined on our [Security Page](https://th
 * [Fix] Bulk activation of plugin aborts activation of subsequent plugins
 
 
-= 3.4.2 - 2020-02-17  =
+### 3.4.2 - 2020-02-17  ###
 
 * New Cypress tests for the Gutenberg block
 
 
-= 3.4.1 - 2020-02-14  =
+### 3.4.1 - 2020-02-14  ###
 
 * [Fix] Insert chart button in the classic block
 * [Fix for Pro version] Import from chart did not work
 
 
-= 3.4.0 - 2020-02-13  =
+### 3.4.0 - 2020-02-13  ###
 
 * [Feat] Support for authentication for JSON import
 * [Feat] New chart type: Bubble
@@ -935,17 +935,17 @@ Please follow the reporting protocols outlined on our [Security Page](https://th
 * [Fix] Long responsive table can overflow on smaller screens
 
 
-= 3.3.4 - 2019-11-15  =
+### 3.3.4 - 2019-11-15  ###
 
 * Fix issue with table chart not loading in the block editor
 
 
-= 3.3.3 - 2019-11-12  =
+### 3.3.3 - 2019-11-12  ###
 
 * Tested upto WordPress 5.3
 
 
-= 3.3.2 - 2019-10-03  =
+### 3.3.2 - 2019-10-03  ###
 
 * Add support for Dataset schema
 * Horizontal Axis formatting should apply to tooltips
